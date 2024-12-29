@@ -37,7 +37,7 @@ class GoogleMapsScraper:
 
     def _prepare_output(self):
         if not os.path.exists(self.output_file):
-            pd.DataFrame(columns=["name", "adres", "website", "telefoon", "reviews_count", "reviews_average", "latitude", "longitude"]).to_csv(self.output_file, index=False)
+            pd.DataFrame(columns=["name", "adres", "website", "telefoon", "reviews_count", "reviews_average", "latitude", "longitude", "search_keyword"]).to_csv(self.output_file, index=False)
 
     def _extract_coordinates(self, url):
         try:
