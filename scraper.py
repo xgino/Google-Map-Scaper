@@ -7,33 +7,12 @@ import random
 from tqdm import tqdm
 
 class GoogleMapsScraper:
-    def __init__(self, config, output_file="data.csv", proxy_file="socks5.txt"):
+    def __init__(self, output_file="./data/data.csv", proxy_file="socks5.txt"):
         self.output_file = output_file
         self.proxy_file = proxy_file
-        self.keywords = self._generate_keywords(config)
         self._prepare_output()
         logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
-    def _generate_keywords(self, config):
-        """
-        Generate keyword combinations sorted by country, then place, and finally keyword.
-
-        Returns:
-            list: A list of strings in the format "country, place, keyword", first iterating 
-            through all country-place-keyword combinations, followed by all place-keyword-country 
-            combinations.
-        """
-        countries = config.get("countries", [])
-        places = config.get("places", [])
-        keyword_list = config.get("keywords", [])
-
-        # Generate country-first and place-first combinations
-        keywords = (
-            [f"{c}, {p}, {k}" for c in countries for p in places for k in keyword_list] +
-            [f"{c}, {p}, {k}" for p in places for k in keyword_list for c in countries]
-        )
-        logging.info(f"Loaded {len(keywords)} keyword combinations.")
-        return keywords
     
     def _load_and_get_proxy(self):
         try:
@@ -46,17 +25,36 @@ class GoogleMapsScraper:
             logging.error(f"Error loading proxy: {e}")
             return None
 
+    def _load_keywords(self):
+        """Load keywords from the .txt file."""
+        with open(self.keyword_file, "r", encoding="utf-8") as f:
+            return [line.strip() for line in f if line.strip()]
+
+    def _save_remaining_keywords(self, keywords):
+        """Save the remaining keywords back to the .txt file."""
+        with open(self.keyword_file, "w", encoding="utf-8") as f:
+            f.write("\n".join(keywords))
+
     def _prepare_output(self):
         if not os.path.exists(self.output_file):
             pd.DataFrame(columns=["name", "adres", "website", "telefoon", "reviews_count", "reviews_average", "latitude", "longitude"]).to_csv(self.output_file, index=False)
 
     def _extract_coordinates(self, url):
         try:
-            coords = url.split("/@")[-1].split("/")[0].split(",")
-            return float(coords[0]), float(coords[1])
+            # Ensure the URL contains the '@' delimiter before splitting
+            if "/@" in url:
+                coords = url.split("/@")[-1].split("/")[0].split(",")
+                if len(coords) >= 2:
+                    lat, lng = coords[0].strip(), coords[1].strip()
+                    return float(lat), float(lng)
+            #logging.warning(f"Invalid URL structure for extracting coordinates: {url}")
+        except ValueError as ve:
+            pass
+            #logging.warning(f"Error converting coordinates to float: {ve} (URL: {url})")
         except Exception as e:
-            logging.warning(f"Error extracting coordinates: {e}")
-            return None, None
+            pass
+            #logging.warning(f"Unexpected error extracting coordinates: {e} (URL: {url})")
+        return None, None
 
     def _accept_cookies(self, page):
         """
@@ -171,97 +169,106 @@ class GoogleMapsScraper:
             return None
 
     def scrape(self, position=0):
+        self.keyword_file = f"./generate_keywords/keywords_{position}.txt"
+        keywords = self._load_keywords()
         total_results = 0
-        proxy = self._load_and_get_proxy()
 
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
-            
-            # Check if a proxy is applied and create a browser context accordingly
-            if proxy:
-                # https://github.com/TheSpeedX/PROXY-List
-                context = browser.new_context(proxy={'server': proxy})
-                print(f"Proxy applied: {proxy}")
-            else:
-                context = browser.new_context()
-                print("No proxy applied")
+        # Estimate total number of batches
+        total_keywords = len(keywords)
+        min_batch_size, max_batch_size = 40, 50
+        estimated_batches = total_keywords // ((min_batch_size + max_batch_size) // 2) + (
+            1 if total_keywords % ((min_batch_size + max_batch_size) // 2) else 0
+        )
 
-            page = browser.new_page()
-            page.goto("https://www.google.com/maps", timeout=60000)
-            self._accept_cookies(page)
+        batch_progress = tqdm(total=estimated_batches, desc=f"Scraper:{position} - Total Batches", position=position, leave=True)
 
-            for keyword in tqdm(self.keywords, desc=f"Scraper {position}", position=position, leave=True):
+        while keywords:
+            # Random batch size for each iteration
+            batch_size = random.randint(min_batch_size, max_batch_size)
+            current_batch = keywords[:batch_size]
+            keywords = keywords[batch_size:]  # Remove processed keywords
 
-                logging.info(f"Scraping keyword: {keyword}")
+            proxy = None
+            with sync_playwright() as p:
+                browser = p.chromium.launch(headless=True)
+                context = None
+                for attempt in range(7):
+                    proxy = self._load_and_get_proxy()
+                    try:
+                        context = (
+                            browser.new_context(proxy={"server": proxy})
+                        )
+                        #print(f"Proxy applied: {proxy}")
+                        break
+                    except Exception as e:
+                        proxy = None
+                        if context:
+                            context.close()
+
+                # Fallback to no proxy after 3 failed attempts
+                if not proxy and not context:
+                    context = browser.new_context()
+                    #print("No proxy applied")
+
                 
-                # Reset memory for the new keyword
-                seen_websites = set()
+                page = browser.new_page()
+                page.goto("https://www.google.com/maps", timeout=60000)
+                self._accept_cookies(page)
+
                 data_batch = []
+                for keyword in current_batch:
+                    #logging.info(f"Scraping keyword: {keyword}")
+                    seen_websites = set()
 
-                page.fill("#searchboxinput", keyword)
-                page.keyboard.press("Enter")
-                page.wait_for_timeout(2000)
+                    try:
+                        page.fill("#searchboxinput", keyword)
+                        page.keyboard.press("Enter")
+                        page.wait_for_timeout(2000)
 
-                duplicates_found = 0  # Counter for consecutive duplicates
-                break_outer = False  # Flag to break out of the keyword loop
+                        links = page.locator('//a[contains(@href, "https://www.google.com/maps/place")]')
+                        duplicates_found = 0
 
-                while True:
-                    links = page.locator('//a[contains(@href, "https://www.google.com/maps/place")]')
-
-                    for i in range(links.count()):
-                        try:
+                        for i in range(links.count()):
                             link = links.nth(i)
-                            if link.is_visible() and link.is_enabled():  # Check visibility and actionability
+                            if link.is_visible() and link.is_enabled():
                                 link.click()
-                                page.wait_for_load_state("domcontentloaded")  # Wait for content to load
-
+                                page.wait_for_load_state("domcontentloaded")
                                 data = self._scrape_details(page)
                                 if data:
-                                    if data['website'] in seen_websites:
-                                        duplicates_found += 1
-                                    else:
-                                        data['search_keyword'] = keyword  # Add the search keyword to the data
-                                        seen_websites.add(data['website'])
+                                    if data["website"] not in seen_websites:
+                                        seen_websites.add(data["website"])
+                                        data["search_keyword"] = keyword
                                         data_batch.append(data)
                                         total_results += 1
-                                        duplicates_found = 0  # Reset duplicate counter
-                                        time.sleep(random.uniform(0.5, 1.5))
-
-                                    # Break the loop if 5 consecutive duplicates are found
+                                    else:
+                                        duplicates_found += 1
                                     if duplicates_found >= 5:
-                                        logging.info("5 consecutive duplicates found. Moving to next keyword.")
-                                        break_outer = True
                                         break
 
-                        except Exception as e:
-                            logging.warning(f"Error processing link: {e}")
+                    except Exception as e:
+                        pass
+                        #logging.warning(f"Error processing keyword {keyword}: {e}")
 
-                    if break_outer or links.count() == 0:
-                        break
-
-                # Write batch data to CSV after each keyword
                 if data_batch:
                     pd.DataFrame(data_batch).to_csv(
                         self.output_file, mode="a", header=not pd.io.common.file_exists(self.output_file), index=False
                     )
-                    data_batch.clear()  # Clear batch after writing
+                context.close()
+                browser.close()
 
-            browser.close()
+             # Update batch progress
+            batch_progress.update(1)
 
+            # Save the remaining keywords
+            self._save_remaining_keywords(keywords)
+
+        batch_progress.close()
         logging.info(f"Total results scraped: {total_results}")
+
         
 if __name__ == "__main__":
-    # Load custom keywords dynamically
-    configs = {
-        "countries": ["Nederland"],
-        "places": [
-            'Wijk 00 Urk', 'Wijk 22 Stadshagen', 'West', 'Zuid', 'Zuidoost', 'Oost', 'Noordoost', 'Wijk 54 Barneveld'
-        ],
-        "keywords": ["marketing", "e commerce", "social media"]
-    }
-
     # Create an instance of GoogleMapsScraper with the configs
-    scraper = GoogleMapsScraper(config=configs)
+    scraper = GoogleMapsScraper()
 
     # Start scraping
     scraper.scrape()
