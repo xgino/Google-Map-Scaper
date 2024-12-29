@@ -16,7 +16,7 @@ def run_scraper(tqdm_position):
     """
     print(f"Starting scraper for {tqdm_position}...")
     scraper = GoogleMapsScraper()
-    scraper.scrape(position=tqdm_position)  # Pass the keywords file
+    scraper.scrape(position=tqdm_position) 
 
 
 def main():
