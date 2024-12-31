@@ -38,7 +38,130 @@ def main():
     # Marketing Agency, Advertising Agency, Digital Marketing, Event Planner
     # Event Management, Restaurants, Startup, Retail
 
-    # Next - Incubators, Accelerators, Co-working Spaces, Networking Groups or Business Associations,  Conference Centers and Event Venues
+    done = [
+        "Gyms", "Fitness", "Consultants", "Recruitment Agencies", "Sales Teams",
+        "Restaurants", "Tourism", "Freelancers", "Coworking Spaces", "B2B",
+        "Digital Advertising", "Retail Stores", "Branding", "Event Organizers", "IT Services",
+        "Tech-Savvy", "Tech", "Branding Agencies", "Networking Events", "Real Estate Agencies",
+        "Marketing Agency", "Advertising Agency", "Digital Marketing", "Event Planner",
+        "Event Management", "Startup", "Retail"
+    ]
+
+    mailplus_keywords = [
+        # Marketing and Advertising
+        "digital marketing agency", "SEO consultant", "content marketing firm", 
+        "branding agency", "advertising agency", "lead generation company", 
+        "social media marketing agency",
+
+        # Sales and Recruitment
+        "sales consulting firm", "sales training company", "recruitment agency",
+        "headhunting service", "B2B sales team", "sales outsourcing service",
+
+        # Startups and Tech
+        "tech startup", "SaaS company", "mobile app developer", 
+        "AI company", "cloud service provider", "software development company", 
+        "web development agency",
+
+        # Professional Services
+        "consulting firm", "business strategy consultant", "financial advisory firm", 
+        "accounting firm", "tax consultancy", "law firm", 
+
+        # E-commerce and Retail
+        "e-commerce business", "online store owner", "retail chain", 
+        "boutique shop", "dropshipping company", "wholesale distributor",
+
+        # Real Estate
+        "real estate agency", "commercial real estate broker", 
+        "property management company", "real estate developer", 
+
+        # Education and Training
+        "corporate training provider", "vocational training center", 
+        "online course creator", "educational consultant", "tutoring service", 
+
+        # Healthcare and Wellness
+        "private clinic", "medical device company", "fitness trainer", 
+        "yoga studio", "nutritionist service", "wellness coach", 
+
+        # Events and Entertainment
+        "event planner", "wedding organizer", "conference organizer", 
+        "trade show exhibitor", "festival promoter", "party rental company",
+
+        # Manufacturing and Industry
+        "industrial equipment supplier", "B2B wholesaler", "machinery manufacturer", 
+        "factory owner", "automotive parts distributor",
+
+        # Logistics and Transportation
+        "courier service", "freight forwarding company", "logistics provider", 
+        "fleet management company", "shipping company", "moving service",
+
+        # Non-Profit Organizations
+        "charity organization", "non-profit organization", "advocacy group", 
+        "community outreach program", "educational foundation", 
+
+        # Freelancers and Consultants
+        "freelance copywriter", "freelance graphic designer", 
+        "business consultant", "freelance marketer", "career coach", 
+
+        # Miscellaneous
+        "B2B service provider", "networking event organizer", 
+        "franchise business owner", "corporate service provider"
+    ]
+
+    Bolar_keywords = [
+            # Marketing and Advertising
+            "digital marketing agency", "social media agency", "SEO consultant",
+            "content marketing specialist", "pay-per-click advertising", "branding agency",
+            
+            # Real Estate and Construction
+            "real estate agency", "commercial property broker", "architectural design firm",
+            "construction company", "interior design studio", "property developer",
+
+            # Retail and Consumer Goods
+            "retail store", "wholesale distributor", "grocery store chain",
+            "franchise business", "e-commerce business", "boutique store",
+
+            # Automotive
+            "car dealership", "vehicle rental company", "auto parts store",
+            "car wash", "fleet management service", "auto repair shop",
+
+            # Food and Hospitality
+            "restaurant chain", "catering company", "coffee shop franchise",
+            "hotel", "resort", "food truck",
+
+            # Professional Services
+            "consulting firm", "recruitment agency", "IT service provider",
+            "financial advisor", "accounting firm", "law firm",
+
+            # Education and Training
+            "vocational training institute", "corporate training provider", 
+            "online education platform", "university", "tutoring service",
+
+            # Healthcare and Wellness
+            "private clinic", "fitness center", "yoga studio", "spa", 
+            "wellness retreat", "chiropractic clinic",
+
+            # Logistics and Transportation
+            "courier service", "shipping company", "moving company",
+            "trucking company", "logistics provider", "freight forwarding service",
+
+            # Events and Entertainment
+            "event planner", "wedding planner", "trade show organizer",
+            "concert promoter", "festival organizer", "party rental service",
+
+            # Technology and Startups
+            "SaaS company", "IT consulting firm", "mobile app developer",
+            "cloud service provider", "tech startup", "software company",
+
+            # Manufacturing and Industry
+            "industrial supplier", "machinery manufacturer", "B2B wholesaler",
+            "factory", "equipment rental service", "industrial automation company",
+
+            # Non-Profits and Public Organizations
+            "community center", "advocacy group", "charity organization",
+            "non-profit organization", "educational foundation", "youth center"
+        ]
+
+
     configs_list = [
         {
             "countries": ["Nederland"],
@@ -110,7 +233,7 @@ def main():
                 "Zuid", "Zuidoost", "Zuidoost", "Zuidplas", "Zundert", "Zutphen", "Zwartewaterland", "Zwijndrecht",
                 "Zwolle"
             ],
-            "keywords": ["Event Management"],
+            "keywords": ["Healthcare Clinics", "Hospitals", "Medical Centers", "Dental Offices", "E-commerce Stores", "Online Marketplaces", "Dropshipping Businesses", "Automobile Showrooms", "Architectural Studios", "Beauty Salons", "Spas", "Wellness Centers"],
         },
         {
             "countries": ["Nederland"],
@@ -182,7 +305,7 @@ def main():
                 "Zuid", "Zuidoost", "Zuidoost", "Zuidplas", "Zundert", "Zutphen", "Zwartewaterland", "Zwijndrecht",
                 "Zwolle"
             ],
-            "keywords": ["Restaurants"],
+            "keywords": ["Universities", "Colleges", "Training Institutes", "Online Learning Platforms", "Hotels", "Resorts", "Guesthouses", "Vacation Rentals", "Aesthetic Clinics", "Photography Studios", "Photo Booth Rentals", "Vehicle Rental Services"],
         },
         {
             "countries": ["Nederland"],
@@ -254,7 +377,7 @@ def main():
                 "Zuid", "Zuidoost", "Zuidoost", "Zuidplas", "Zundert", "Zutphen", "Zwartewaterland", "Zwijndrecht",
                 "Zwolle"
             ],
-            "keywords": ["Startup"],
+            "keywords": ["Logistics Companies", "Courier Services", "Shipping Firms", "Freight Companies", "Factories", "Production Units", "Supply Chain Companies", "Car Dealerships", "Freelance Photographers", "Event Photographers", "Tech Startups"],
         },
         {
             "countries": ["Nederland"],
@@ -326,7 +449,7 @@ def main():
                 "Zuid", "Zuidoost", "Zuidoost", "Zuidplas", "Zundert", "Zutphen", "Zwartewaterland", "Zwijndrecht",
                 "Zwolle"
             ],
-            "keywords": ["Retail "],
+            "keywords": ["Public Surveys", "Music Festivals", "Trade Shows", "Expos", "Sporting Events", "Construction Firms", "Property Managers", "Auto Repair Shops", "Innovative Apps", "Software Developers", "Product Design Agencies"],
         },
     ]
 
