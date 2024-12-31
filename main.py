@@ -14,7 +14,7 @@ def run_scraper(tqdm_position):
     Args:
         tqdm_position (int): Unique tqdm position.
     """
-    print(f"Starting scraper for {tqdm_position}...")
+    #print(f"Starting scraper for {tqdm_position}...")
     scraper = GoogleMapsScraper()
     scraper.scrape(position=tqdm_position) 
 
@@ -31,6 +31,7 @@ def main():
         return
 
     logging.info(f"Found {num_keyword_files} keyword files to process.")
+    logging.info(f"========= Start Scraping =========")
 
     # Run scrapers in parallel for each keyword file
     processes = []
