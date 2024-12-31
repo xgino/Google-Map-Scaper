@@ -79,7 +79,7 @@ class GoogleMapsScraper:
                 if button.count() > 0:
                     button.first.click()
                     page.wait_for_timeout(1000)  # Wait for any overlay to disappear
-                    logging.info(f"Clicked cookie button with text: {word}")
+                    #logging.info(f"Clicked cookie button with text: {word}")
                     return True
             except Exception as e:
                 logging.debug(f"Failed to click cookie button for word '{word}': {e}")
@@ -90,7 +90,7 @@ class GoogleMapsScraper:
             if button.count() > 0:
                 button.first.click()
                 page.wait_for_timeout(1000)  # Wait for any overlay to disappear
-                logging.info("Clicked cookie button with specific class name.")
+                #logging.info("Clicked cookie button with specific class name.")
                 return True
         except Exception as e:
             logging.debug(f"Failed to click cookie button by class name: {e}")
@@ -256,7 +256,7 @@ class GoogleMapsScraper:
                 context.close()
                 browser.close()
 
-             # Update batch progress
+            # Update batch progress
             batch_progress.update(1)
 
             # Save the remaining keywords
