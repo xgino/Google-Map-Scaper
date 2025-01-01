@@ -1,75 +1,50 @@
 # Google Maps Business Scraper  
 
-The **Google Maps Business Scraper** is a powerful and reliable **Python-based tool** for extracting detailed business information directly from Google Maps. Designed with performance and scalability in mind, it offers a robust solution for data scraping needs.  
 
-Built for efficiency, this scraper is ideal for **targeting specific locations and categories**, making it perfect for businesses, researchers, and data analysts seeking actionable insights.  
+The **Google Maps Business Scraper** is a Python-based tool for extracting detailed business information from Google Maps. It’s designed for efficiency, scalability, and ease of use, making it perfect for businesses, researchers, and analysts.
 
-## Why Choose This Scraper?  
-- **Reliable Data Scraping**: Handles large-scale data extraction seamlessly.  
-- **Efficient and Robust**: Built for continuous operation with minimal errors.  
-- **Terminal-Friendly**: Easily operate the scraper directly from your terminal.  
 
-Whether you need to build a comprehensive business database or analyze market trends, this tool delivers **accurate, scalable, and efficient results**.  
+## Key Features
 
-**Example Use Cases**:  
-- Building business contact lists for marketing.  
-- Collecting geospatial data for research or analysis.  
-- Generating location-based insights for decision-making.  
----
+- **Proxy Rotation**: Minimizes the risk of IP blocks by Google Maps, `ensuring continuous scraping`.
+- **Keyword Generator**: Creates detailed and specific keywords to `maximize data collection` efficiency.
+- **Browser Refresh**: Automatically refreshes the browser, proxy, and appends data to the CSV after each batch to `optimize RAM usage` and system performance.
+- **Batch Processing**: Runs multiple scripts simultaneously, drastically `reducing processing time`.
+- **Progress Tracking**: Each process displays an `individual progress bar` for clear and real-time updates.
+- **Easy Resume**: Automatically resumes from the leftover `keywords.txt` and continues appending new data to the CSV
 
-## Features
 
-1. **Proxy Rotation**: Rotate proxies to **prevent IP blocks** and keep scraping uninterrupted.  
-2. **Keyword Generation**: Optimize keywords for **maximum data collection** by making them as detailed as possible.  
-3. **Headless Scraping**: Saves RAM, handles cookie acceptance, and works seamlessly via the terminal.  
-4. **Batch Processing**: Process in **batches** instead of items to save RAM and improve efficiency.  
-5. **Automatic Browser Restart**: Closes and starts a **new browser with a fresh proxy** after each batch to optimize RAM usage.  
-6. **Detailed Data Extraction**: Extracts more **comprehensive data from Google Maps** (details below).  
-7. **Progress Tracking**: Added progress feedback to make the terminal less boring—no dancing cat, unfortunately.  
-8. **Duplicate Prevention**: Avoids duplicate saves by **tracking current batch items** in memory.  
-   - **Note**: Multiprocessing may still cause duplicates if keywords overlap; future work involves improving this with a `drop_duplicates` approach.  
-9. **Timeouts and Fallbacks**: Respects servers by **timing out to avoid overloads** and maintains continuous scraping despite errors.  
-10. **Resume with Keywords**: Uses `keywords.txt` to **resume from where you left off**.  
-    - Unused keywords stay in the file, so you can pick up where you stopped—even for a mid-bathroom break emergency.  
-11. **Continuous Data Appending**: Appends new data to an **existing CSV**, ensuring a continuously growing dataset.  
+## Installation
 
----
+1. Clone the Repository
 
-## Instructions
+   ```bash
+   git clone https://github.com/xgino/Google-Map-Scraper.git  
+   cd Google-Map-Scraper  
+   ```
 
-1. **Python Version**: Use Python 3.12 (older versions may work, but not guaranteed).
-2. **Install Dependencies**:  
-   - Clone the repo:  
-     ```bash
-     git clone https://github.com/xgino/Google-Map-Scaper.git
-     cd google-maps-scraper  
-     ```
-   - Install required Python packages:  
-     ```bash
-     pip install -r requirements.txt  
-     ```
-   - Install Playwright for browser automation:  
-     ```bash
-     pip install playwright  
-     playwright install  
-     ```
+2. Install Dependencies
 
-3. **Prepare Files**:  
-   - `socks5.txt`: Proxy list (from [TheSpeedX Proxy List](https://github.com/TheSpeedX/PROXY-List)).
-   - `generate_keywords.py`: Generate keywords based on location and category (e.g., "Netherlands", "Amsterdam", "Restaurant").
-   - `get_region.py`: Get region data for your country (modify based on your country’s data).
-   - `keyword_{i}.txt`: Remaining keywords for scraping.
+   ```bash
+   pip install -r requirements.txt  
+   playwright install  
+   ```
 
-4. **Run the Scraper**:
-   - First, run `get_regions.py` to generate `regions.txt`.
-   - Then, copy `regions.txt` into `generate_keywords.py` and run it to create keyword files (e.g., `keyword_1.txt`).
-   - Finally, run `main.py` to start scraping.
+## Usage
+1. Generate Keywords
 
----
+   ```bash
+   cd generate_keywords  
+   python generate_keywords.py
+   ```
+   Edit `country`, `places`, and `keywords` in the script to suit your needs.
 
-## Credits
-- Proxy list sourced from [TheSpeedX/PROXY-List](https://github.com/TheSpeedX/PROXY-List).
-- All other code was written from scratch, taking an entire week. Feel free to use it. If you find it useful, consider donating via [Ko-Fi](https://ko-fi.com/xgino) to fuel my next coding session.  ## Instructions
+2. Run the Scraper
+
+   ```bash
+   cd ..  # Go back to the root directory  
+   python main.py  
+   ```
 
 
 ## Scraper Output  
@@ -85,20 +60,23 @@ The scraped data is saved in `./data/data.csv` with the following columns:
 - **longitude**: Longitude of the business
 - **search_keyword**: Keyword used for search
 
----
 
-## Notes
-- **System Requirements**: Tested with Python 3.12 and 16GB RAM. If using lower configurations, adjust the number of processes accordingly.
-- **Proxy Rotation**: Ensure that the `socks5.txt` file contains valid, up-to-date proxies.
----
+## Considerations and Potential Challenges
+- **Google Maps Updates**: Changes to Google Maps' HTML structure might require script updates to maintain functionality.
+- **Proxy Maintenance**: The `socks5.txt` file must be manually updated with valid and working proxies to ensure uninterrupted scraping.
+- **Hardware Limits**: Scaling to higher processor counts may be difficult due to hardware constraints like `RAM and CPU capacity`.
 
-## Limitations
-- **Hardware Requirements**: Performance and multiprocessing capabilities depend on the hardware; more processes require more system resources.
-- **Google Maps Infrastructure**: The scraper relies on Google Maps’ infrastructure; any changes to the site may cause the scraper to break.
-- **Coordinate Availability**: Coordinates may not always be provided by Google Maps, depending on the data available for the business.
-- **Proxy Maintenance**: The proxy list (`socks5.txt`) needs to be manually updated to ensure functionality.
 
----
+## Credits
+- Proxy sourced from [TheSpeedX/PROXY-List](https://github.com/TheSpeedX/PROXY-List).
+- All other code was written from scratch over two weeks.
+- Developed with support from ChatGPT for debugging and brainstorming.
 
 ## Support  
-If you find this useful, please consider supporting me by getting me a coffee on [Ko-fi](https://ko-fi.com/xgino). Every sip helps fuel a new line of code. Thank you for your support, and keep coding!
+What began as a simple 2-hour project quickly escalated. The first version of the scraper took over 48 hours to complete, which was far from ideal. After weeks of trial and error, optimizations brought it down to 24 hours, but it still wasn’t good enough. Countless tweaks and revisions followed, pushing the script to its limits until it now runs in just 30 minutes, an improvement that feels like a major victory.
+
+A project I thought would take only a couple of hours turned into weeks of refining and learning. But I’m proud to have an optimized and fast version that finally works as intended. If you find this tool useful, consider supporting me with a coffee on [Ko-fi](https://ko-fi.com/xgino). Every sip helps fuel a new line of code. Thank you for your support, and keep coding!
+
+
+## Disclaimer
+Please ensure you comply with all applicable local laws and regulations.
