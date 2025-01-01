@@ -1,0 +1,14 @@
+Nederland, Nijmegen, Universities
+Nederland, Nijmegen, Hotels
+Nederland, Nijmegen-Midden, Universities
+Nederland, Nijmegen-Midden, Hotels
+Nederland, Nijmegen-Nieuw-West, Universities
+Nederland, Nijmegen-Nieuw-West, Hotels
+Nederland, Nijmegen-Noord, Universities
+Nederland, Nijmegen-Noord, Hotels
+Nederland, Nijmegen-Oost, Universities
+Nederland, Nijmegen-Oost, Hotels
+Nederland, Nijmegen-Oud-West, Universities
+Nederland, Nijmegen-Oud-West, Hotels
+Nederland, Nijmegen-Zuid, Universities
+Nederland, Nijmegen-Zuid, Hotels
