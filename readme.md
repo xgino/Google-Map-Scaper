@@ -75,7 +75,7 @@ The scraped data is saved in `./data/data.csv` with the following columns:
 ## Support  
 What began as a simple 2-hour project quickly escalated. The first version of the scraper took over 48 hours to complete, which was far from ideal. After weeks of trial and error, optimizations brought it down to 24 hours, but it still wasn’t good enough. Countless tweaks and revisions followed, pushing the script to its limits until it now runs in just 30 minutes, an improvement that feels like a major victory.
 
-A project I thought would take only a couple of hours turned into weeks of refining and learning. But I’m proud to have an optimized and fast version that finally works as intended. If you find this tool useful, consider supporting me with a coffee on [Ko-fi](https://ko-fi.com/xgino). Every sip helps fuel a new line of code. Thank you for your support, and keep coding!
+A project I thought would take only a couple of hours turned into weeks of refining and learning. But I’m proud to have an optimized and fast version that finally works as intended. If you find this tool useful, consider supporting me with a coffee on [![Ko-fi](https://img.shields.io/badge/Ko--fi-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/xgino). Every sip helps fuel a new line of code. Thank you for your support, and keep coding!
 
 
 ## Disclaimer
