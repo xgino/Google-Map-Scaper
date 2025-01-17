@@ -3,8 +3,6 @@
 
 The **Google Maps Business Scraper** is a Python-based tool for extracting detailed business information from Google Maps. It’s designed for efficiency, scalability, and ease of use, making it perfect for businesses, researchers, and analysts.
 
-<img src="flow.png" alt="Project flow" width="450"/>
-
 
 ## Key Features
 
@@ -48,6 +46,7 @@ The **Google Maps Business Scraper** is a Python-based tool for extracting detai
    python main.py  
    ```
 
+<img src="flow.png" alt="Project flow" width="450"/>
 
 ## Scraper Output  
 The scraped data is saved in `./data/data.csv` with the following columns:
