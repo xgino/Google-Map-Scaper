@@ -66,6 +66,7 @@ The scraped data is saved in `./data/data.csv` with the following columns:
 - **Google Maps Updates**: Changes to Google Maps' HTML structure might require script updates to maintain functionality.
 - **Proxy Maintenance**: The `socks5.txt` file must be manually updated with valid and working proxies to ensure uninterrupted scraping.
 - **Hardware Limits**: Scaling to higher processor counts may be difficult due to hardware constraints like `RAM and CPU capacity`.
+- **I noticed a minor issue**: `Duplicates may occur` due to eg. (stores) being found under multiple keywords or overlapping processes in multiprocessing. Consider implementing duplicate removal to further use this effectively.
 
 
 ## Credits
