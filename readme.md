@@ -67,6 +67,7 @@ The scraped data is saved in `./data/data.csv` with the following columns:
 - **Proxy Maintenance**: The `socks5.txt` file must be manually updated with valid and working proxies to ensure uninterrupted scraping.
 - **Hardware Limits**: Scaling to higher processor counts may be difficult due to hardware constraints like `RAM and CPU capacity`.
 - **I noticed a minor issue**: `Duplicates may occur` due to eg. (stores) being found under multiple keywords or overlapping processes in multiprocessing. Consider implementing duplicate removal to further use this effectively.
+- **Another notice:** It doesn't seem to work on a MacBook with a silicon chip. I wasn't able to dive deeper, perhaps a driver issue for Playwright.
 
 
 ## Credits
