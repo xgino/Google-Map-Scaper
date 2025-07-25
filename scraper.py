@@ -115,6 +115,27 @@ class GoogleMapsScraper:
                 except Exception:
                     return None
 
+            def get_business_name():
+                try:
+                    # Try the visible heading
+                    name_locator = page.locator('h1.DUwDvf.lfPIob')
+                    if name_locator.is_visible(timeout=timeout):
+                        name = name_locator.text_content(timeout=timeout).strip()
+                        if name:
+                            return name
+                except Exception:
+                    pass
+
+                try:
+                    # Fallback: use the <title> tag (Google Maps includes business name here)
+                    title_text = page.title()
+                    if " - Google Maps" in title_text:
+                        return title_text.replace(" - Google Maps", "").strip()
+                except Exception:
+                    pass
+
+                return "N/A"
+
             def get_phone_number():
                 from urllib.parse import unquote
                 # First try the known button path
@@ -140,7 +161,7 @@ class GoogleMapsScraper:
                 return "N/A"
 
             # Scrape all data with fallback to defaults
-            name = get_text(page.locator('h1.DUwDvf.lfPIob')) or "Unknown"
+            name = get_business_name()
             adres = get_text(page.locator('//button[@data-item-id="address"]//div'), slice_after=1) or "N/A"
             website = get_text(page.locator('div.rogA2c.ITvuef')) or "N/A"
             telefoon = get_phone_number()
