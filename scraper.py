@@ -115,11 +115,35 @@ class GoogleMapsScraper:
                 except Exception:
                     return None
 
+            def get_phone_number():
+                from urllib.parse import unquote
+                # First try the known button path
+                try:
+                    phone_locator = page.locator('//button[contains(@data-item-id, "phone")]//div')
+                    if phone_locator.is_visible(timeout=timeout):
+                        phone_text = phone_locator.text_content(timeout=timeout).strip()
+                        if phone_text:
+                            return phone_text
+                except Exception:
+                    pass
+
+                # Fallback: search for tel: links
+                try:
+                    tel_link = page.locator('a[href^="tel:"]').first
+                    if tel_link.is_visible(timeout=timeout):
+                        href = tel_link.get_attribute('href', timeout=timeout)
+                        if href:
+                            return unquote(href.replace('tel:', ''))
+                except Exception:
+                    pass
+
+                return "N/A"
+
             # Scrape all data with fallback to defaults
             name = get_text(page.locator('h1.DUwDvf.lfPIob')) or "Unknown"
             adres = get_text(page.locator('//button[@data-item-id="address"]//div'), slice_after=1) or "N/A"
             website = get_text(page.locator('div.rogA2c.ITvuef')) or "N/A"
-            telefoon = get_text(page.locator('//button[contains(@data-item-id, "phone:tel:")]//div'), slice_after=1) or "N/A"
+            telefoon = get_phone_number()
 
             # Reviews Average
             avg_review = 0.0
