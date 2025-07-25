@@ -136,6 +136,45 @@ class GoogleMapsScraper:
 
                 return "N/A"
 
+            def get_address():
+                try:
+                    address_locator = page.locator('//button[@data-item-id="address"]//div')
+                    if address_locator.is_visible(timeout=timeout):
+                        return address_locator.text_content(timeout=timeout).strip()
+                except Exception:
+                    pass
+
+                try:
+                    # Fallback: find visible spans with address format
+                    address_span = page.locator('span.LrzXr')
+                    if address_span.is_visible(timeout=timeout):
+                        return address_span.text_content(timeout=timeout).strip()
+                except Exception:
+                    pass
+
+                return "N/A"
+
+            def get_website():
+                try:
+                    # Try anchor with real URL
+                    website_link = page.locator('//a[contains(@href, "http") and contains(@aria-label, "Website")]').first
+                    if website_link.is_visible(timeout=timeout):
+                        href = website_link.get_attribute('href', timeout=timeout)
+                        if href:
+                            return href.strip()
+                except Exception:
+                    pass
+
+                try:
+                    # Fallback: legacy div structure
+                    website_div = page.locator('div.rogA2c.ITvuef')
+                    if website_div.is_visible(timeout=timeout):
+                        return website_div.text_content(timeout=timeout).strip()
+                except Exception:
+                    pass
+
+                return "N/A"
+
             def get_phone_number():
                 from urllib.parse import unquote
                 # First try the known button path
@@ -162,8 +201,8 @@ class GoogleMapsScraper:
 
             # Scrape all data with fallback to defaults
             name = get_business_name()
-            adres = get_text(page.locator('//button[@data-item-id="address"]//div'), slice_after=1) or "N/A"
-            website = get_text(page.locator('div.rogA2c.ITvuef')) or "N/A"
+            adres = get_address()
+            website = get_website()
             telefoon = get_phone_number()
 
             # Reviews Average
