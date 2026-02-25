@@ -82,9 +82,9 @@ A project I thought would take only a couple of hours turned into weeks of refin
 
 
 ## Legal Disclaimer
-Educational Use Only **This software is fully functional but provided strictly for educational purposes.**
+**Educational & Research Use Only.** This tool is provided "as-is" by **xgino**. By using this software, you agree to the following:
 
-- **Google Terms of Service:** Automated scraping is explicitly forbidden under **Google Maps Platform Terms of Service (Section 3.2.3)**. Google requires the use of their official API for commercial data retrieval. 
-- **GDPR/AVG Compliance:** Users are solely responsible for ensuring compliance with local laws. In the EU, scraping personal data (e.g., Sole Proprietors/ZZP) without consent is a violation of the **GDPR (AVG)**.
-
-**Liability:** The author (**xgino**) assumes no responsibility for any misuse, API bans, or legal consequences resulting from the use of this tool. Use at your own risk.
+* **Google Terms of Service:** Automated scraping is explicitly forbidden under Google Maps Platform Terms (Section 3.2.3). Google requires the use of their official API for commercial data retrieval.
+* **GDPR/AVG Compliance:** While business listings are public, they often contain **Personal Data** (e.g., Sole Proprietors/ZZP). Scraping this data without consent is a violation of the GDPR in the EU. **Check your local laws before use.**
+* **Ethical Usage:** This tool is designed to minimize impact. Users must ensure their scraping frequency does not disrupt Google’s services or violate their policies.
+* **No Liability:** The author assumes **zero responsibility** for misuse, API bans, or legal consequences. You use this tool at your **own risk** and agree to indemnify the author against all claims.
