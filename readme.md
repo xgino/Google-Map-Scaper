@@ -81,5 +81,10 @@ What began as a simple 2-hour project quickly escalated. The first version of th
 A project I thought would take only a couple of hours turned into weeks of refining and learning. But I’m proud to have an optimized and fast version that finally works as intended. If you find this tool useful, consider supporting me with a coffee on [![Ko-fi](https://img.shields.io/badge/Ko--fi-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/xgino). Every sip helps fuel a new line of code. Thank you for your support, and keep coding!
 
 
-## Disclaimer
-Please ensure you comply with all applicable local laws and regulations.
+## Legal Disclaimer
+Educational Use Only **This software is fully functional but provided strictly for educational purposes.**
+
+- **Google Terms of Service:** Automated scraping is explicitly forbidden under **Google Maps Platform Terms of Service (Section 3.2.3)**. Google requires the use of their official API for commercial data retrieval. 
+- **GDPR/AVG Compliance:** Users are solely responsible for ensuring compliance with local laws. In the EU, scraping personal data (e.g., Sole Proprietors/ZZP) without consent is a violation of the **GDPR (AVG)**.
+
+**Liability:** The author (**xgino**) assumes no responsibility for any misuse, API bans, or legal consequences resulting from the use of this tool. Use at your own risk.
