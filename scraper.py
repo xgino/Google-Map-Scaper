@@ -225,7 +225,7 @@ class GoogleMapsScraper:
         Returns:
             dict | None: A dictionary with keys ``name``, ``adres``,
             ``website``, ``telefoon``, ``reviews_count``, ``reviews_average``,
-            ``category``, ``latitude``, ``longitude``, ``google_maps_url``.
+            ``category``, ``latitude``, ``longitude``, ``Maps_url``.
             Returns ``None`` on complete failure.
         """
         try:
@@ -251,6 +251,52 @@ class GoogleMapsScraper:
                     reviews_average: 0.0,
                     category: "N/A",
                 };
+                
+                // Enhanced helper to handle text like "4,1(79)" or "79 reviews"
+                const extractReviewCountFromXPath = (xpath) => {
+                    try {
+                        const node = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+                        if (node && node.textContent) {
+                            const text = node.textContent.trim();
+                            
+                            // 1. Look for a number inside parentheses: "(79)" or "(1.234)"
+                            const parenMatch = text.match(/\(([\d.,]+)\)/);
+                            if (parenMatch) {
+                                const cleanNum = parseInt(parenMatch[1].replace(/[.,]/g, ''), 10);
+                                if (!isNaN(cleanNum)) return cleanNum;
+                            }
+                            
+                            // 2. Look for a number followed by "reviews": "79 reviews"
+                            const textMatch = text.match(/^([\d.,]+)\s*(review|recensie|reseña)/i);
+                            if (textMatch) {
+                                const cleanNum = parseInt(textMatch[1].replace(/[.,]/g, ''), 10);
+                                if (!isNaN(cleanNum)) return cleanNum;
+                            }
+                            
+                            // 3. Last resort fallback: just grab the numbers
+                            const fallbackMatch = text.match(/([\d.,]+)/);
+                            if (fallbackMatch) {
+                                const cleanNum = parseInt(fallbackMatch[1].replace(/[.,]/g, ''), 10);
+                                if (!isNaN(cleanNum)) return cleanNum;
+                            }
+                        }
+                    } catch (e) {}
+                    return 0;
+                };
+
+                // ===== REVIEWS =====
+                
+                // User Option 1: Direct XPath to the div containing "4,1(79)"
+                if (result.reviews_count === 0) {
+                    const val = extractReviewCountFromXPath('/html/body/div[1]/div[2]/div[9]/div[8]/div/div/div[1]/div[3]/div/div[1]/div/div/div[2]/div[2]/div/div[1]/div[2]/div/div[1]/div[2]');
+                    if (val > 0) result.reviews_count = val;
+                }
+
+                // User Option 2: Direct XPath to the button containing "79 reviews"
+                if (result.reviews_count === 0) {
+                    const val = extractReviewCountFromXPath('/html/body/div[1]/div[2]/div[9]/div[8]/div/div/div[1]/div[3]/div/div[1]/div/div/div[2]/div[29]/div/div[2]/button');
+                    if (val > 0) result.reviews_count = val;
+                }
 
                 // ===== NAME =====
                 const h1 = document.querySelector("h1.DUwDvf.lfPIob");
@@ -314,8 +360,21 @@ class GoogleMapsScraper:
                     }
                 }
 
-                // ===== REVIEWS (avg + count extracted together) =====
-                // Strategy A: F7nice container has both rating and count as siblings
+                // ===== REVIEWS =====
+                
+                // User Option 1: Direct XPath to the "(79)" span
+                if (result.reviews_count === 0) {
+                    const val = extractNumFromXPath('/html/body/div[1]/div[2]/div[9]/div[8]/div/div/div[1]/div[3]/div/div[1]/div/div/div[2]/div[2]/div/div[1]/div[2]/div/div[1]/div[2]/span[2]');
+                    if (val > 0) result.reviews_count = val;
+                }
+
+                // User Option 2: Direct XPath to the "79 reviews" button text
+                if (result.reviews_count === 0) {
+                    const val = extractNumFromXPath('/html/body/div[1]/div[2]/div[9]/div[8]/div/div/div[1]/div[3]/div/div[1]/div/div/div[2]/div[29]/div/div[2]/button/div/span');
+                    if (val > 0) result.reviews_count = val;
+                }
+
+                // Fallback Strategy A: Class based extraction (safe net)
                 const f7 = document.querySelector("div.F7nice");
                 if (f7) {
                     // Average: first span's direct text
@@ -327,56 +386,32 @@ class GoogleMapsScraper:
                             result.reviews_average = avgNum;
                         }
                     }
-                    // Count: look for "(N)" text within the same F7nice container
-                    const allSpans = f7.querySelectorAll("span");
-                    for (const span of allSpans) {
-                        const t = span.textContent.trim();
-                        const m = t.match(/^\((\d[\d.]*)\)$/);
-                        if (m) {
-                            result.reviews_count = parseInt(m[1].replace(/\./g, ""), 10);
-                            break;
-                        }
+                    // Count (only if Options 1 & 2 failed)
+                    if (result.reviews_count === 0) {
+                        const fullText = f7.textContent;                          
+                        const countMatch = fullText.match(/\((\d[\d.]*)\)/);
+                        if (countMatch) {                                        
+                            result.reviews_count = parseInt(                     
+                                countMatch[1].replace(/\./g, ""), 10            
+                            );                                                  
+                        }                                                       
                     }
                 }
 
-                // Strategy B: aria-label on role="img" span (e.g. "99 recensies")
-                if (result.reviews_count === 0) {
-                    const imgSpans = document.querySelectorAll('span[role="img"]');
-                    for (const span of imgSpans) {
-                        const label = (span.getAttribute("aria-label") || "").toLowerCase();
-                        if (label.includes("review") || label.includes("recensie") || label.includes("reseña")) {
-                            const m = label.match(/([\d.]+)/);
-                            if (m) {
-                                result.reviews_count = parseInt(m[1].replace(/\./g, ""), 10);
-                                break;
-                            }
-                        }
-                    }
-                }
-
-                // Strategy C: HHrUdb container (e.g. "99 reviews")
-                if (result.reviews_count === 0) {
-                    const hhSpan = document.querySelector("div.HHrUdb span");
-                    if (hhSpan) {
-                        const m = hhSpan.textContent.match(/([\d.]+)/);
-                        if (m) {
-                            result.reviews_count = parseInt(m[1].replace(/\./g, ""), 10);
-                        }
-                    }
-                }
-
-                // Average fallback: aria-label on star icons
-                if (result.reviews_average === 0) {
-                    const starSpan = document.querySelector('span.ceNzKf[role="img"]');
-                    if (starSpan) {
-                        const label = starSpan.getAttribute("aria-label") || "";
-                        const numStr = label.split(" ")[0].replace(",", ".");
-                        const num = parseFloat(numStr);
-                        if (!isNaN(num) && num > 0 && num <= 5) {
-                            result.reviews_average = num;
-                        }
-                    }
-                }
+                // Fallback Strategy B: "N reviews" button further down the page
+                if (result.reviews_count === 0) {                           
+                    const btns = document.querySelectorAll("button");        
+                    for (const btn of btns) {                               
+                        const t = btn.textContent.trim();                    
+                        const m = t.match(/^(\d[\d.]*)\s*(review|recensie|reseña)/i);
+                        if (m) {                                            
+                            result.reviews_count = parseInt(                
+                                m[1].replace(/\./g, ""), 10                 
+                            );                                              
+                            break;                                          
+                        }                                                   
+                    }                                                       
+                }                                                           
 
                 // ===== CATEGORY =====
                 const catBtn = document.querySelector("button.DkEaL");
