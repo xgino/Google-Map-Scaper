@@ -97,8 +97,8 @@ class GoogleMapsScraper:
         if not os.path.exists(self.output_file):
             pd.DataFrame(columns=[
                 "name", "adres", "website", "telefoon",
-                "reviews_count", "reviews_average",
-                "latitude", "longitude", "search_keyword",
+                "reviews_count", "reviews_average", "category",
+                "latitude", "longitude", "google_maps_url", "search_keyword",
             ]).to_csv(self.output_file, index=False)
 
     def _extract_coordinates(self, url):
@@ -214,8 +214,9 @@ class GoogleMapsScraper:
     def _scrape_details(self, page):
         """Extract structured business data from the currently open Maps listing.
 
-        Each field is scraped with a primary selector and one or more fallbacks
-        so the scraper degrades gracefully when Google changes the DOM.
+        All fields are extracted in a single page.evaluate() call to guarantee
+        consistency — every value comes from the same DOM snapshot, preventing
+        stale data from a previous listing bleeding into the current one.
 
         Args:
             page: The Playwright ``Page`` object positioned on a place detail
@@ -224,237 +225,202 @@ class GoogleMapsScraper:
         Returns:
             dict | None: A dictionary with keys ``name``, ``adres``,
             ``website``, ``telefoon``, ``reviews_count``, ``reviews_average``,
-            ``latitude``, ``longitude``.  Returns ``None`` on complete failure.
+            ``category``, ``latitude``, ``longitude``, ``google_maps_url``.
+            Returns ``None`` on complete failure.
         """
         try:
-            timeout = 1500  # ms – keep low to avoid stalling on missing elements
-
-            # ----- helper -----
-            def get_text(locator, strip=True, slice_after=None):
-                """Safely extract text from a Playwright locator.
-
-                Args:
-                    locator:     A Playwright ``Locator`` object.
-                    strip:       Whether to strip whitespace.
-                    slice_after: If set, return ``text[slice_after:]``.
-
-                Returns:
-                    str | None: The extracted text, or ``None`` on failure.
-                """
-                try:
-                    if locator.is_visible(timeout=timeout) and locator.is_enabled(timeout=timeout):
-                        text = locator.text_content(timeout=timeout)
-                        if strip:
-                            text = text.strip()
-                        if slice_after:
-                            text = text[slice_after:]
-                        return text
-                except Exception:
-                    return None
-
-            # ----- business name -----
-            def get_business_name():
-                """Return the business name from the heading or the page title."""
-                try:
-                    name_locator = page.locator('h1.DUwDvf.lfPIob')
-                    if name_locator.is_visible(timeout=timeout):
-                        name = name_locator.text_content(timeout=timeout).strip()
-                        if name:
-                            return name
-                except Exception:
-                    pass
-                # Fallback: parse the <title> tag (format: "Name - Google Maps")
-                try:
-                    title_text = page.title()
-                    if " - Google Maps" in title_text:
-                        return title_text.replace(" - Google Maps", "").strip()
-                except Exception:
-                    pass
-                return "N/A"
-
-            # ----- address -----
-            def get_address():
-                """Return the street address from the info panel."""
-                # Primary: the shared info-row class inside the address button
-                try:
-                    address_locator = page.locator('//button[@data-item-id="address"]//div[contains(@class, "Io6YTe")]')
-                    if address_locator.is_visible(timeout=timeout):
-                        return address_locator.text_content(timeout=timeout).strip()
-                except Exception:
-                    pass
-                # Fallback: older data-item-id selector without class filter
-                try:
-                    address_locator = page.locator('//button[@data-item-id="address"]//div')
-                    if address_locator.is_visible(timeout=timeout):
-                        return address_locator.text_content(timeout=timeout).strip()
-                except Exception:
-                    pass
-                # Fallback: legacy span
-                try:
-                    address_span = page.locator('span.LrzXr')
-                    if address_span.is_visible(timeout=timeout):
-                        return address_span.text_content(timeout=timeout).strip()
-                except Exception:
-                    pass
-                return "N/A"
-
-            # ----- website -----
-            def get_website():
-                """Return the business website URL."""
-                # Primary: anchor with data-item-id="authority"
-                try:
-                    website_link = page.locator('//a[@data-item-id="authority"]')
-                    if website_link.is_visible(timeout=timeout):
-                        href = website_link.get_attribute('href', timeout=timeout)
-                        if href:
-                            return href.strip()
-                except Exception:
-                    pass
-                # Fallback: anchor with aria-label containing "Website"
-                try:
-                    website_link = page.locator('//a[contains(@href, "http") and contains(@aria-label, "Website")]').first
-                    if website_link.is_visible(timeout=timeout):
-                        href = website_link.get_attribute('href', timeout=timeout)
-                        if href:
-                            return href.strip()
-                except Exception:
-                    pass
-                # Fallback: text content from the Io6YTe div inside a website link
-                try:
-                    website_text = page.locator('//a[@data-item-id="authority"]//div[contains(@class, "Io6YTe")]')
-                    if website_text.is_visible(timeout=timeout):
-                        return website_text.text_content(timeout=timeout).strip()
-                except Exception:
-                    pass
-                # Fallback: legacy div class
-                try:
-                    website_div = page.locator('div.rogA2c.ITvuef')
-                    if website_div.is_visible(timeout=timeout):
-                        return website_div.text_content(timeout=timeout).strip()
-                except Exception:
-                    pass
-                return "N/A"
-
-            # ----- phone -----
-            def get_phone_number():
-                """Return the phone number from the info panel or a tel: link."""
-                from urllib.parse import unquote
-                # Primary: Io6YTe div inside the phone button
-                try:
-                    phone_locator = page.locator('//button[contains(@data-item-id, "phone")]//div[contains(@class, "Io6YTe")]')
-                    if phone_locator.is_visible(timeout=timeout):
-                        phone_text = phone_locator.text_content(timeout=timeout).strip()
-                        if phone_text:
-                            return phone_text
-                except Exception:
-                    pass
-                # Fallback: older phone button selector without class filter
-                try:
-                    phone_locator = page.locator('//button[contains(@data-item-id, "phone")]//div')
-                    if phone_locator.is_visible(timeout=timeout):
-                        phone_text = phone_locator.text_content(timeout=timeout).strip()
-                        if phone_text:
-                            return phone_text
-                except Exception:
-                    pass
-                # Fallback: tel: link
-                try:
-                    tel_link = page.locator('a[href^="tel:"]').first
-                    if tel_link.is_visible(timeout=timeout):
-                        href = tel_link.get_attribute('href', timeout=timeout)
-                        if href:
-                            return unquote(href.replace('tel:', ''))
-                except Exception:
-                    pass
-                return "N/A"
-
-            # ----- collect all fields -----
-            name = get_business_name()
-            adres = get_address()
-            website = get_website()
-            telefoon = get_phone_number()
-
-            # Reviews – average star rating
-            avg_review = 0.0
+            # Scroll the detail panel to trigger lazy-loaded content
             try:
-                # Primary: aria-hidden span with the numeric rating (e.g. "4,6")
-                avg_review_locator = page.locator('span[aria-hidden="true"]').first
-                if avg_review_locator.is_visible(timeout=timeout):
-                    text = avg_review_locator.text_content(timeout=timeout).strip()
-                    if text and text.replace(",", "").replace(".", "").isdigit():
-                        avg_review = float(text.replace(",", "."))
-            except Exception:
-                pass
-            # Fallback: original F7nice selector
-            if avg_review == 0.0:
-                try:
-                    avg_review_locator = page.locator('div.F7nice span').nth(0)
-                    if avg_review_locator.is_visible(timeout=timeout) and avg_review_locator.is_enabled(timeout=timeout):
-                        avg_review = float(avg_review_locator.text_content(timeout=timeout).replace(",", "."))
-                except Exception:
-                    pass
-            # Fallback: parse from the star-icon span's aria-label (e.g. "4,6 sterren")
-            if avg_review == 0.0:
-                try:
-                    star_span = page.locator('span.ceNzKf[role="img"]')
-                    if star_span.is_visible(timeout=timeout):
-                        label = star_span.get_attribute('aria-label', timeout=timeout)
-                        if label:
-                            # Extract leading number from e.g. "4,6 sterren " or "4.6 stars"
-                            num_str = label.split()[0].replace(",", ".")
-                            avg_review = float(num_str)
-                except Exception:
-                    pass
-
-            # Reviews – total count
-            total_reviews = 0
-            try:
-                total_reviews_locator = page.locator('div.F7nice span:nth-child(2) span span')
-                if total_reviews_locator.is_visible(timeout=timeout) and total_reviews_locator.is_enabled(timeout=timeout):
-                    total_reviews = int(
-                        total_reviews_locator.text_content(timeout=timeout)
-                        .replace("(", "")
-                        .replace(")", "")
-                        .replace(".", "")
-                    )
-            except Exception:
-                pass
-            # Fallback: aria-label on the reviews button (e.g. "1.234 reviews")
-            if total_reviews == 0:
-                try:
-                    reviews_btn = page.locator('//button[contains(@aria-label, "review")]')
-                    if reviews_btn.is_visible(timeout=timeout):
-                        label = reviews_btn.get_attribute('aria-label', timeout=timeout)
-                        if label:
-                            num_str = ''.join(c for c in label.split()[0] if c.isdigit())
-                            if num_str:
-                                total_reviews = int(num_str)
-                except Exception:
-                    pass
-
-            # Coordinates from the browser URL
-            latitude, longitude = None, None
-            try:
-                latitude, longitude = self._extract_coordinates(page.url)
+                panel = page.locator('div[role="main"]')
+                if panel.count() > 0:
+                    panel.first.evaluate('el => el.scrollTop = el.scrollHeight')
+                    page.wait_for_timeout(500)
+                    panel.first.evaluate('el => el.scrollTop = 0')
+                    page.wait_for_timeout(300)
             except Exception:
                 pass
 
-            data = {
-                "name": name,
-                "adres": adres,
-                "website": website,
-                "telefoon": telefoon,
-                "reviews_count": total_reviews,
-                "reviews_average": avg_review,
-                "latitude": latitude,
-                "longitude": longitude,
-            }
+            # Single atomic DOM read — all fields extracted in one JS call
+            data = page.evaluate(r'''() => {
+                const result = {
+                    name: "N/A",
+                    adres: "N/A",
+                    website: "N/A",
+                    telefoon: "N/A",
+                    reviews_count: 0,
+                    reviews_average: 0.0,
+                    category: "N/A",
+                };
+
+                // ===== NAME =====
+                const h1 = document.querySelector("h1.DUwDvf.lfPIob");
+                if (h1) {
+                    const text = h1.textContent.trim();
+                    if (text) result.name = text;
+                }
+                if (result.name === "N/A") {
+                    const title = document.title || "";
+                    if (title.includes(" - Google Maps")) {
+                        result.name = title.replace(" - Google Maps", "").trim();
+                    }
+                }
+
+                // ===== ADDRESS =====
+                const addrBtn = document.querySelector('button[data-item-id="address"]');
+                if (addrBtn) {
+                    // Try Io6YTe first, then any div
+                    const io = addrBtn.querySelector('div.Io6YTe');
+                    if (io) {
+                        result.adres = io.textContent.trim();
+                    } else {
+                        const div = addrBtn.querySelector("div");
+                        if (div) result.adres = div.textContent.trim();
+                    }
+                }
+                if (result.adres === "N/A") {
+                    const span = document.querySelector("span.LrzXr");
+                    if (span) result.adres = span.textContent.trim();
+                }
+
+                // ===== WEBSITE =====
+                const wsLink = document.querySelector('a[data-item-id="authority"]')
+                    || document.querySelector('a[aria-label*="Website"]')
+                    || document.querySelector('a[aria-label*="website"]');
+                if (wsLink) {
+                    const href = wsLink.getAttribute("href");
+                    if (href) result.website = href.trim();
+                }
+                if (result.website === "N/A") {
+                    const wsDiv = document.querySelector("div.rogA2c.ITvuef");
+                    if (wsDiv) result.website = wsDiv.textContent.trim();
+                }
+
+                // ===== PHONE =====
+                const phoneBtn = document.querySelector('button[data-item-id^="phone"]');
+                if (phoneBtn) {
+                    const io = phoneBtn.querySelector("div.Io6YTe");
+                    if (io) {
+                        result.telefoon = io.textContent.trim();
+                    } else {
+                        const div = phoneBtn.querySelector("div");
+                        if (div) result.telefoon = div.textContent.trim();
+                    }
+                }
+                if (result.telefoon === "N/A") {
+                    const tel = document.querySelector('a[href^="tel:"]');
+                    if (tel) {
+                        const href = tel.getAttribute("href") || "";
+                        result.telefoon = decodeURIComponent(href.replace("tel:", ""));
+                    }
+                }
+
+                // ===== REVIEWS (avg + count extracted together) =====
+                // Strategy A: F7nice container has both rating and count as siblings
+                const f7 = document.querySelector("div.F7nice");
+                if (f7) {
+                    // Average: first span's direct text
+                    const avgSpan = f7.querySelector("span");
+                    if (avgSpan) {
+                        const avgText = avgSpan.textContent.trim().replace(",", ".");
+                        const avgNum = parseFloat(avgText);
+                        if (!isNaN(avgNum) && avgNum > 0 && avgNum <= 5) {
+                            result.reviews_average = avgNum;
+                        }
+                    }
+                    // Count: look for "(N)" text within the same F7nice container
+                    const allSpans = f7.querySelectorAll("span");
+                    for (const span of allSpans) {
+                        const t = span.textContent.trim();
+                        const m = t.match(/^\((\d[\d.]*)\)$/);
+                        if (m) {
+                            result.reviews_count = parseInt(m[1].replace(/\./g, ""), 10);
+                            break;
+                        }
+                    }
+                }
+
+                // Strategy B: aria-label on role="img" span (e.g. "99 recensies")
+                if (result.reviews_count === 0) {
+                    const imgSpans = document.querySelectorAll('span[role="img"]');
+                    for (const span of imgSpans) {
+                        const label = (span.getAttribute("aria-label") || "").toLowerCase();
+                        if (label.includes("review") || label.includes("recensie") || label.includes("reseña")) {
+                            const m = label.match(/([\d.]+)/);
+                            if (m) {
+                                result.reviews_count = parseInt(m[1].replace(/\./g, ""), 10);
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                // Strategy C: HHrUdb container (e.g. "99 reviews")
+                if (result.reviews_count === 0) {
+                    const hhSpan = document.querySelector("div.HHrUdb span");
+                    if (hhSpan) {
+                        const m = hhSpan.textContent.match(/([\d.]+)/);
+                        if (m) {
+                            result.reviews_count = parseInt(m[1].replace(/\./g, ""), 10);
+                        }
+                    }
+                }
+
+                // Average fallback: aria-label on star icons
+                if (result.reviews_average === 0) {
+                    const starSpan = document.querySelector('span.ceNzKf[role="img"]');
+                    if (starSpan) {
+                        const label = starSpan.getAttribute("aria-label") || "";
+                        const numStr = label.split(" ")[0].replace(",", ".");
+                        const num = parseFloat(numStr);
+                        if (!isNaN(num) && num > 0 && num <= 5) {
+                            result.reviews_average = num;
+                        }
+                    }
+                }
+
+                // ===== CATEGORY =====
+                const catBtn = document.querySelector("button.DkEaL");
+                if (catBtn) {
+                    result.category = catBtn.textContent.trim();
+                } else {
+                    const catSpan = document.querySelector("span.DkEaL");
+                    if (catSpan) {
+                        result.category = catSpan.textContent.trim();
+                    }
+                }
+                // Fallback: sibling after the rating line
+                if (result.category === "N/A" && f7 && f7.parentElement) {
+                    const parent = f7.parentElement.parentElement;
+                    if (parent) {
+                        const last = parent.children[parent.children.length - 1];
+                        if (last) {
+                            const text = last.textContent.trim();
+                            if (text && !text.match(/^[\d.,()]+$/)) {
+                                result.category = text;
+                            }
+                        }
+                    }
+                }
+
+                return result;
+            }''')
+
+            if not data or data.get("name") == "N/A":
+                return None
+
+            # Coordinates from the browser URL (can't do this in JS due to SPA routing)
+            latitude, longitude = self._extract_coordinates(page.url)
+
+            data["latitude"] = latitude
+            data["longitude"] = longitude
+            data["google_maps_url"] = page.url
+
             return data
 
         except Exception as e:
             logging.warning(f"Error scraping details: {e}")
             return None
-
+        
     def scrape(self, position=0):
         """Run the main scraping loop.
 
@@ -498,7 +464,7 @@ class GoogleMapsScraper:
 
             proxy = None
             with sync_playwright() as p:
-                browser = p.chromium.launch(headless=False)
+                browser = p.chromium.launch(headless=True)
 
                 # Attempt up to 7 proxies before falling back to direct
                 context = None
@@ -541,9 +507,28 @@ class GoogleMapsScraper:
                         for i in range(links.count()):
                             link = links.nth(i)
                             if link.is_visible() and link.is_enabled():
+                                old_url = page.url  # New
+                                old_name = page.locator('h1.DUwDvf.lfPIob').text_content() if page.locator('h1.DUwDvf.lfPIob').count() > 0 else ""
                                 link.click()
-                                page.wait_for_load_state("domcontentloaded")
+                                try:
+                                    page.wait_for_function(  # New – wait for URL + title + reviews to all change
+                                        r'''(args) => {
+                                            const [oldUrl, oldName] = args;
+                                            const urlChanged = window.location.href !== oldUrl;
+                                            const h1 = document.querySelector("h1.DUwDvf.lfPIob");
+                                            const nameChanged = h1 && h1.textContent.trim() !== oldName.trim();
+                                            const reviewsLoaded = document.querySelector('div.F7nice')
+                                                || document.querySelector('div.HHrUdb');
+                                            return urlChanged && nameChanged && reviewsLoaded;
+                                        }''',
+                                        [old_url, old_name],  # New – pass both as array
+                                        timeout=5000,
+                                    )
+                                    page.wait_for_timeout(500)  # New – let remaining fields settle
+                                except Exception:
+                                    page.wait_for_timeout(2500)  # fallback: just wait
                                 data = self._scrape_details(page)
+
                                 if data:
                                     if data["website"] not in seen_websites:
                                         seen_websites.add(data["website"])
