@@ -284,20 +284,6 @@ class GoogleMapsScraper:
                     return 0;
                 };
 
-                // ===== REVIEWS =====
-                
-                // User Option 1: Direct XPath to the div containing "4,1(79)"
-                if (result.reviews_count === 0) {
-                    const val = extractReviewCountFromXPath('/html/body/div[1]/div[2]/div[9]/div[8]/div/div/div[1]/div[3]/div/div[1]/div/div/div[2]/div[2]/div/div[1]/div[2]/div/div[1]/div[2]');
-                    if (val > 0) result.reviews_count = val;
-                }
-
-                // User Option 2: Direct XPath to the button containing "79 reviews"
-                if (result.reviews_count === 0) {
-                    const val = extractReviewCountFromXPath('/html/body/div[1]/div[2]/div[9]/div[8]/div/div/div[1]/div[3]/div/div[1]/div/div/div[2]/div[29]/div/div[2]/button');
-                    if (val > 0) result.reviews_count = val;
-                }
-
                 // ===== NAME =====
                 const h1 = document.querySelector("h1.DUwDvf.lfPIob");
                 if (h1) {
@@ -314,7 +300,6 @@ class GoogleMapsScraper:
                 // ===== ADDRESS =====
                 const addrBtn = document.querySelector('button[data-item-id="address"]');
                 if (addrBtn) {
-                    // Try Io6YTe first, then any div
                     const io = addrBtn.querySelector('div.Io6YTe');
                     if (io) {
                         result.adres = io.textContent.trim();
@@ -362,15 +347,15 @@ class GoogleMapsScraper:
 
                 // ===== REVIEWS =====
                 
-                // User Option 1: Direct XPath to the "(79)" span
+                // User Option 1: Direct XPath to the div containing "4,1(79)"
                 if (result.reviews_count === 0) {
-                    const val = extractNumFromXPath('/html/body/div[1]/div[2]/div[9]/div[8]/div/div/div[1]/div[3]/div/div[1]/div/div/div[2]/div[2]/div/div[1]/div[2]/div/div[1]/div[2]/span[2]');
+                    const val = extractReviewCountFromXPath('/html/body/div[1]/div[2]/div[9]/div[8]/div/div/div[1]/div[3]/div/div[1]/div/div/div[2]/div[2]/div/div[1]/div[2]/div/div[1]/div[2]');
                     if (val > 0) result.reviews_count = val;
                 }
 
-                // User Option 2: Direct XPath to the "79 reviews" button text
+                // User Option 2: Direct XPath to the button containing "79 reviews"
                 if (result.reviews_count === 0) {
-                    const val = extractNumFromXPath('/html/body/div[1]/div[2]/div[9]/div[8]/div/div/div[1]/div[3]/div/div[1]/div/div/div[2]/div[29]/div/div[2]/button/div/span');
+                    const val = extractReviewCountFromXPath('/html/body/div[1]/div[2]/div[9]/div[8]/div/div/div[1]/div[3]/div/div[1]/div/div/div[2]/div[29]/div/div[2]/button');
                     if (val > 0) result.reviews_count = val;
                 }
 
@@ -542,11 +527,11 @@ class GoogleMapsScraper:
                         for i in range(links.count()):
                             link = links.nth(i)
                             if link.is_visible() and link.is_enabled():
-                                old_url = page.url  # New
+                                old_url = page.url
                                 old_name = page.locator('h1.DUwDvf.lfPIob').text_content() if page.locator('h1.DUwDvf.lfPIob').count() > 0 else ""
                                 link.click()
                                 try:
-                                    page.wait_for_function(  # New – wait for URL + title + reviews to all change
+                                    page.wait_for_function(
                                         r'''(args) => {
                                             const [oldUrl, oldName] = args;
                                             const urlChanged = window.location.href !== oldUrl;
@@ -556,10 +541,10 @@ class GoogleMapsScraper:
                                                 || document.querySelector('div.HHrUdb');
                                             return urlChanged && nameChanged && reviewsLoaded;
                                         }''',
-                                        [old_url, old_name],  # New – pass both as array
+                                        [old_url, old_name],
                                         timeout=5000,
                                     )
-                                    page.wait_for_timeout(500)  # New – let remaining fields settle
+                                    page.wait_for_timeout(500)
                                 except Exception:
                                     page.wait_for_timeout(2500)  # fallback: just wait
                                 data = self._scrape_details(page)
