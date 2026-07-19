@@ -1,5 +1,6 @@
 """
 Google Maps Scraper
+
 ===================
 
 A Playwright-based scraper that searches Google Maps for business listings
@@ -50,6 +51,82 @@ class GoogleMapsScraper:
         self.proxy_file = proxy_file
         self._prepare_output()
         logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+        
+    INVALID_VALUES = {
+        "",
+        "n/a",
+        "na",
+        "none",
+        "null",
+        "nan",
+    }
+
+    OUTPUT_COLUMNS = [
+        "name",
+        "adres",
+        "website",
+        "telefoon",
+        "reviews_count",
+        "reviews_average",
+        "category",
+        "latitude",
+        "longitude",
+        "google_maps_url",
+        "search_keyword",
+    ]
+
+
+    @classmethod
+    def _normalize_value(cls, value):
+        if value is None:
+            return ""
+
+        value = " ".join(str(value).strip().lower().split())
+
+        if value in cls.INVALID_VALUES:
+            return ""
+
+        return value
+
+
+    @classmethod
+    def _is_valid_result(cls, data):
+        if not isinstance(data, dict):
+            return False
+
+        return bool(cls._normalize_value(data.get("name")))
+
+
+    @classmethod
+    def _get_dedupe_key(cls, data):
+        """Alamat menjadi identitas utama untuk mencegah duplikasi."""
+
+        address = cls._normalize_value(data.get("adres"))
+
+        if address:
+            return f"address:{address}"
+
+        maps_url = cls._normalize_value(
+            data.get("google_maps_url")
+        ).split("?")[0].rstrip("/")
+
+        if maps_url:
+            return f"maps:{maps_url}"
+
+        website = cls._normalize_value(
+            data.get("website")
+        ).split("?")[0].rstrip("/")
+
+        if website:
+            return f"website:{website}"
+
+        name = cls._normalize_value(data.get("name"))
+        phone = cls._normalize_value(data.get("telefoon"))
+
+        if name:
+            return f"name:{name}|phone:{phone}"
+
+        return None
 
     def _load_and_get_proxy(self):
         """Read the proxy file and return a randomly chosen proxy string.
@@ -209,8 +286,200 @@ class GoogleMapsScraper:
             pass
 
         logging.warning(f"Could not find search box for keyword: {keyword}")
-        return False
+        return 
+    
+    def _extract_data_snapshot(self, page):
+        """
+        Extract data snapshot - used for quick polling.
+        Same logic as _scrape_details() but without waiting.
+        """
+        try:
+            data = page.evaluate(r'''() => {
+                const result = {
+                    name: "N/A",
+                    adres: "N/A",
+                    website: "N/A",
+                    telefoon: "N/A",
+                    reviews_count: 0,
+                    reviews_average: 0.0,
+                    category: "N/A",
+                };
+                
+                // ===== NAME =====
+                const h1 = document.querySelector("h1.DUwDvf.lfPIob");
+                if (h1) {
+                    const text = h1.textContent.trim();
+                    if (text) result.name = text;
+                }
+                
+                // ===== REVIEWS - QUICK CHECK =====
+                const f7 = document.querySelector("div.F7nice");
+                if (f7) {
+                    const fullText = f7.textContent.trim();
+                    
+                    // Only extract if content is substantial (> 10 chars)
+                    if (fullText.length > 10) {
+                        // Extract average
+                        const avgSpan = f7.querySelector("span[aria-hidden='true']") || f7.querySelector("span");
+                        if (avgSpan) {
+                            const avgText = avgSpan.textContent.trim().replace(",", ".");
+                            const avgNum = parseFloat(avgText);
+                            if (!isNaN(avgNum) && avgNum > 0 && avgNum <= 5) {
+                                result.reviews_average = avgNum;
+                            }
+                        }
+                        
+                        // Extract count
+                        const countMatch = fullText.match(/\(([\d.,]+)\)/) || fullText.match(/([\d.,]+)\s*(review|recensie|reseña)/i);
+                        if (countMatch) {
+                            const cleanNum = parseInt(countMatch[1].replace(/[.,]/g, ''), 10);
+                            if (!isNaN(cleanNum)) result.reviews_count = cleanNum;
+                        }
+                    }
+                }
+                
+                return result;
+            }''')
+            
+            return data
+        except Exception as e:
+            return 
+    
+    def _scrape_details_with_smart_polling(self, page, max_wait_ms=3000):
+        """
+        Extract with smart polling - check every 200ms if data ready.
+        Return ASAP when reviews_count is available (don't wait unnecessarily).
+        """
+        start_time = time.time()
+        attempts = 0
+        last_result = None
+        
+        while (time.time() - start_time) * 1000 < max_wait_ms and attempts < 15:
+            # Quick extraction check
+            data = self._extract_data_snapshot(page)
+            last_result = data
+            
+            # Check if we got the key data
+            if data:
+                has_name = data.get("name", "N/A") != "N/A"
+                has_reviews = data.get("reviews_count", 0) > 0
+                
+                # If we have both name and reviews, return immediately
+                if has_name and has_reviews:
+                    logging.debug(f"✅ Got reviews in attempt {attempts + 1} ({(time.time() - start_time) * 1000:.0f}ms)")
+                    break
+            
+            # Wait 200ms before next attempt
+            time.sleep(0.2)
+            attempts += 1
+        
+        # Full extraction for all fields
+        if last_result and last_result.get("name") != "N/A":
+            try:
+                full_data = page.evaluate(r'''() => {
+                    const result = {
+                        name: "N/A",
+                        adres: "N/A",
+                        website: "N/A",
+                        telefoon: "N/A",
+                        reviews_count: 0,
+                        reviews_average: 0.0,
+                        category: "N/A",
+                    };
+                    
+                    // ===== NAME =====
+                    const h1 = document.querySelector("h1.DUwDvf.lfPIob");
+                    if (h1) {
+                        const text = h1.textContent.trim();
+                        if (text) result.name = text;
+                    }
+                    if (result.name === "N/A") {
+                        const title = document.title || "";
+                        if (title.includes(" - Google Maps")) {
+                            result.name = title.replace(" - Google Maps", "").trim();
+                        }
+                    }
 
+                    // ===== ADDRESS =====
+                    const addrBtn = document.querySelector('button[data-item-id="address"]');
+                    if (addrBtn) {
+                        const io = addrBtn.querySelector('div.Io6YTe');
+                        if (io) {
+                            result.adres = io.textContent.trim();
+                        } else {
+                            const div = addrBtn.querySelector("div");
+                            if (div) result.adres = div.textContent.trim();
+                        }
+                    }
+
+                    // ===== WEBSITE =====
+                    const wsLink = document.querySelector('a[data-item-id="authority"]')
+                        || document.querySelector('a[aria-label*="Website"]')
+                        || document.querySelector('a[aria-label*="website"]');
+                    if (wsLink) {
+                        const href = wsLink.getAttribute("href");
+                        if (href) result.website = href.trim();
+                    }
+
+                    // ===== PHONE =====
+                    const phoneBtn = document.querySelector('button[data-item-id^="phone"]');
+                    if (phoneBtn) {
+                        const io = phoneBtn.querySelector("div.Io6YTe");
+                        if (io) {
+                            result.telefoon = io.textContent.trim();
+                        } else {
+                            const div = phoneBtn.querySelector("div");
+                            if (div) result.telefoon = div.textContent.trim();
+                        }
+                    }
+
+                    // ===== REVIEWS =====
+                    const parseReviewCount = (str) => {
+                        const cleanStr = str.replace(/[.,]/g, '');
+                        const num = parseInt(cleanStr, 10);
+                        return isNaN(num) ? 0 : num;
+                    };
+
+                    const f7 = document.querySelector("div.F7nice");
+                    if (f7) {
+                        const avgSpan = f7.querySelector("span[aria-hidden='true']") || f7.querySelector("span");
+                        if (avgSpan) {
+                            const avgText = avgSpan.textContent.trim().replace(",", ".");
+                            const avgNum = parseFloat(avgText);
+                            if (!isNaN(avgNum) && avgNum > 0 && avgNum <= 5) {
+                                result.reviews_average = avgNum;
+                            }
+                        }
+
+                        const fullText = f7.textContent;
+                        const countMatch = fullText.match(/\(([\d.,]+)\)/) || fullText.match(/([\d.,]+)\s*(review|recensie|reseña)/i);
+                        if (countMatch) {
+                            result.reviews_count = parseReviewCount(countMatch[1]);
+                        }
+                    }
+
+                    // ===== CATEGORY =====
+                    const catBtn = document.querySelector("button.DkEaL");
+                    if (catBtn) {
+                        result.category = catBtn.textContent.trim();
+                    } else {
+                        const catSpan = document.querySelector("span.DkEaL");
+                        if (catSpan) {
+                            result.category = catSpan.textContent.trim();
+                        }
+                    }
+
+                    return result;
+                }''')
+                
+                # Merge results (keep reviews from polling if better)
+                if full_data:
+                    return full_data
+            except Exception as e:
+                logging.debug(f"Full extraction error: {e}")
+        
+        return last_result
+    
     def _scrape_details(self, page):
         """Extract structured business data from the currently open Maps listing.
 
@@ -472,6 +741,7 @@ class GoogleMapsScraper:
         self.keyword_file = f"./generate_keywords/keywords_{position}.txt"
         keywords = self._load_keywords()
         total_results = 0
+        seen_records = set()
 
         # Estimate the number of batches for the progress bar
         total_keywords = len(keywords)
@@ -517,7 +787,7 @@ class GoogleMapsScraper:
                 data_batch = []  # accumulate results for the current batch
 
                 for keyword in current_batch:
-                    seen_websites = set()  # de-duplicate within a keyword
+                   
 
                     try:
                         # Type the keyword into the search box and submit
@@ -537,12 +807,14 @@ class GoogleMapsScraper:
                                 old_name = page.locator('h1.DUwDvf.lfPIob').text_content() if page.locator('h1.DUwDvf.lfPIob').count() > 0 else ""
                                 link.click()
                                 try:
+                                    # ✅ IMPROVED: Wait for page change + element presence
                                     page.wait_for_function(
                                         r'''(args) => {
                                             const [oldUrl, oldName] = args;
                                             const urlChanged = window.location.href !== oldUrl;
                                             const h1 = document.querySelector("h1.DUwDvf.lfPIob");
                                             const nameChanged = h1 && h1.textContent.trim() !== oldName.trim();
+                                            // ✅ Check element existence only, not content
                                             const reviewsLoaded = document.querySelector('div.F7nice')
                                                 || document.querySelector('div.HHrUdb');
                                             return urlChanged && nameChanged && reviewsLoaded;
@@ -550,33 +822,64 @@ class GoogleMapsScraper:
                                         [old_url, old_name],
                                         timeout=5000,
                                     )
-                                    page.wait_for_timeout(500)
+                                    page.wait_for_timeout(200)  # REDUCED: 500ms → 200ms
                                 except Exception:
-                                    page.wait_for_timeout(2500)  # fallback: just wait
-                                data = self._scrape_details(page)
+                                    page.wait_for_timeout(500)  # REDUCED: 2500ms → 500ms fallback
+                                
+                                #  NEW: Smart polling extraction
+                                data = self._scrape_details_with_smart_polling(
+                                    page,
+                                    max_wait_ms=2800
+                                )
 
-                                if data:
-                                    if data["website"] not in seen_websites:
-                                        seen_websites.add(data["website"])
-                                        data["search_keyword"] = keyword
-                                        data_batch.append(data)
-                                        total_results += 1
-                                    else:
-                                        duplicates_found += 1
-                                    # Stop early if we keep hitting duplicates
+                                # pass the output /A,N/A,N/A
+                                if not self._is_valid_result(data):
+                                    continue
+
+                                # Pastikan seluruh kolom CSV tersedia
+                                latitude, longitude = self._extract_coordinates(page.url)
+
+                                data["latitude"] = latitude
+                                data["longitude"] = longitude
+                                data["google_maps_url"] = page.url
+                                data["search_keyword"] = keyword
+
+                                dedupe_key = self._get_dedupe_key(data)
+
+                                if dedupe_key and dedupe_key in seen_records:
+                                    duplicates_found += 1
+
+                                    logging.info(
+                                        f"Skipping duplicate address: {data.get('adres')}"
+                                    )
+
                                     if duplicates_found >= 5:
                                         break
+
+                                    continue
+
+                                if dedupe_key:
+                                    seen_records.add(dedupe_key)
+
+                                data_batch.append(data)
+                                total_results += 1
 
                     except Exception as e:
                         pass
 
                 # Flush batch to CSV
                 if data_batch:
-                    pd.DataFrame(data_batch).to_csv(
-                        self.output_file, mode="a", header=not pd.io.common.file_exists(self.output_file), index=False
+                    batch_df = pd.DataFrame(data_batch)
+
+                    # Memastikan search_keyword tidak bergeser ke kolom latitude
+                    batch_df = batch_df.reindex(columns=self.OUTPUT_COLUMNS)
+
+                    batch_df.to_csv(
+                        self.output_file,
+                        mode="a",
+                        header=False,
+                        index=False,
                     )
-                context.close()
-                browser.close()
 
             batch_progress.update(1)
 
